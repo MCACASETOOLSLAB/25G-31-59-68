@@ -1,0 +1,240 @@
+#include<iostream>
+#include<conio.h>
+#include<stdio.h>
+#include<conio.h>
+#include<windows.h>
+#include<unistd.h>
+#include<time.h>
+#include "msecond.h"
+#include "random_int.h"
+#define THINKING 0
+#define HUNGRY 1
+#define EATING 2
+int state[5];
+int status[5][10];
+
+using namespace std;
+const int NumberOfPhilosophers	= 5;	// must be 5
+const int MeanThinkTime		= 1000;	// average think time in milliseconds
+const int MeanEatTime		= 750;	// average eating time in milliseconds
+// Global (shared) variables
+// Global (shared) variables
+float totalTimeSpentWaiting	= 0.0;
+int   totalNumberOfMealsServed	= 0;
+class semaphore{
+int value;
+public:
+    semaphore(){value=1;}
+    void wait();
+    void signal();
+
+
+};
+void semaphore::wait()
+{
+    value=0;
+}
+void semaphore::signal()
+{
+    value==1;
+};
+semaphore chopstick[NumberOfPhilosophers];
+semaphore mutex;
+semaphore screen;
+
+//philosopher class
+class Philosopher
+{
+private:
+DWORD ThreadID;
+    HANDLE ThreadHandle;
+int		_number;
+    int		_timeToLive;
+public:
+    Philosopher( void ) { cout<<"r"; _number = -1; _timeToLive = 0; };
+    Philosopher( int n, int t )	{ _number = n; _timeToLive = t; };
+   ~Philosopher( void )		{};
+    void getChopsticks( void );
+    void releaseChopsticks( void );
+    void start( void );
+    void wait(void);
+    void test(int);
+    //void wait( void );
+    friend DWORD WINAPI Philosopher_run( Philosopher* p );
+};
+void Philosopher::getChopsticks( void )
+// To obtain his chopsticks, a philosopher does a semaphore wait on each.
+// Alternating order prevents deadlock.
+{
+    /*if ( _number % 2 == 0 )
+    {
+	// even-numbered philosopher; pickup left then right...
+	chopstick[( _number + 1 ) % NumberOfPhilosophers].wait();
+	//drawChopstickUp( ( _number + 1 ) % NumberOfPhilosophers );
+	cout<<"\nPhilosopher "<<_number<<"is picking up spoon "<<( _number + 1 ) % NumberOfPhilosophers<<endl;
+	chopstick[_number].wait();
+	cout<<"\nPhilosopher "<<_number<<"is picking up spoon "<<_number<<endl;
+    }
+    else {
+	// odd-number philosopher; pickup right then left...
+	chopstick[_number].wait();
+	cout<<"\nPhilosopher "<<_number<<"is picking up spoon "<<_number<<endl;
+	chopstick[( _number + 1 ) % NumberOfPhilosophers].wait();
+	cout<<"\nPhilosopher "<<_number<<"is picking up spoon "<<( _number + 1 ) % NumberOfPhilosophers<<endl;
+    }*/
+    state[_number]=HUNGRY;
+ test(_number);
+ chopstick[_number].wait();
+
+
+};
+
+void Philosopher::releaseChopsticks( void )
+// To release his chopsticks, a philosopher does a semaphore signal on each.
+// Order does not matter.
+{
+   /* //drawChopstickDown( _number );
+    cout<<"\nPhilosopher "<<_number<<"is putting down spoon "<<_number<<endl;
+    chopstick[_number].signal();
+    //drawChopstickDown( ( _number + 1 ) % NumberOfPhilosophers );
+    cout<<"\nPhilosopher "<<_number<<"is putting down spoon "<<( _number + 1 ) % NumberOfPhilosophers<<endl;
+    chopstick[( _number + 1 ) % NumberOfPhilosophers].signal();*/
+    state[_number]=THINKING;
+    test((_number-1)%5);
+    test((_number+1)%5);
+};
+void Philosopher::test(int i)
+
+{
+if(state[i]==HUNGRY && state[(i-1)%5]!=EATING &&state[(i+1)%5]!=EATING)
+{
+    state[i]=EATING;
+    chopstick[i].signal();
+}
+}
+DWORD WINAPI Philosopher_run( Philosopher* philosopher )
+// Simulate a philosopher - endlessly cycling between eating and thinking
+// until his "life" is over.  Since this is called via pthread_create(), it
+// must accept a single argument which is a pointer to something.  In this
+// case the argument is a pointer to an array of two integers.  The first
+// is the philosopher number and the second is the duration (in seconds)
+// that the philosopher sits at the table.
+{
+    int n = philosopher->_number;
+    int duration = philosopher->_timeToLive;
+    int eatCount = 0;
+    int totalHungryTime = 0;
+    clock_t becameHungryTime;
+    clock_t startTime = clock();
+    //cout<<"startTime="<<startTime<<endl;
+
+
+    while( clock() - startTime < duration * 1000 )
+    {
+	// Hungry
+
+	becameHungryTime = clock();
+	//cout<<"\nHUNGRY="<<becameHungryTime<<endl;
+	//drawHungry( n );
+	screen.wait();
+	cout<<"\nPhilosopher "<<n<<"is hungry"<<endl;
+	philosopher->getChopsticks();
+	screen.signal();
+
+	// Eating
+
+	totalHungryTime += ( clock() - becameHungryTime );
+//cout<<"Total hungry time of p "<<n<<"="<<totalHungryTime<<endl;
+	eatCount++;
+	//drawEating( n, eatCount );
+	screen.wait();
+	cout<<"\nPhilosopher "<<n<<"is eating"<<endl;
+	screen.signal();
+	srand(time(NULL));
+	usleep( 1000L * (rand()%MeanEatTime+1 ) );
+	philosopher->releaseChopsticks();
+
+	// Think
+screen.wait();
+	cout<<"\nPhilosopher "<<n<<"is thinking"<<endl;
+	screen.signal();
+	usleep( 1000L * (rand()%MeanThinkTime+1 ) );
+    }
+
+    // Done
+
+    //drawDone( n );
+
+  mutex.wait();
+    totalNumberOfMealsServed += eatCount;
+    totalTimeSpentWaiting += ( totalHungryTime / 1000.0 );
+    mutex.signal();
+    //system("cls");
+    static int i,j;
+    ExitThread(NULL);
+    return 0;
+};
+
+void Philosopher::start( void )
+// Start the thread representing the philosopher
+{
+    //cout<<"start ";
+    if ( _number < 0 )
+    {
+	cerr << "Philosopher::start(): Philosopher not initialized\n";
+	exit( 1 );
+    }
+
+    ThreadHandle=CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)Philosopher_run,this,0,(LPDWORD)&ThreadID);
+     //cout<<"finish";
+
+
+
+
+};
+void Philosopher::wait( void )
+// When called by the parent, this method will block until the philosopher's
+// thread terminates.
+{
+WaitForSingleObject(ThreadHandle,INFINITE);
+    CloseHandle(ThreadHandle);
+
+};
+
+int main()
+{
+    Philosopher p[NumberOfPhilosophers];
+    //cout<<"main :"<<clock()<<endl;
+
+    // The duration is specified as the first parameter on the command line.
+    // If it was not there then set the duration to 10.
+
+    //int duration = ( argc > 1 ? atoi( argv[1] ) : 10 );
+
+    // Initalize the display and start the thread for each philosopher.
+int duration=10;
+//    initScreen();
+    for ( int i = 0; i < NumberOfPhilosophers; i++ )
+    {
+      //  cout<<"satyan";
+	p[i] = Philosopher( i, duration );
+	p[i].start();
+    }
+
+    // Wait for the philosophers to finish.
+
+    for ( int i = 0; i < NumberOfPhilosophers; i++ )
+    {
+	p[i].wait();
+    }
+
+    // Produce the final report.
+
+   // cout << pos( 13, 1 );
+
+    cout << "Total meals served = " << totalNumberOfMealsServed << "\n";
+    cout << "Average hungry time = " <<
+	( totalTimeSpentWaiting / totalNumberOfMealsServed ) << "\n";
+
+    return 0;
+};
