@@ -1,0 +1,51 @@
+#include <windows.h>
+#include <iostream>
+using namespace std;
+HANDLE forkMutexes[3];
+DWORD WINAPI Player1(void* param){
+for(int i =0; i < 3; i++){ //Computation Time : 2 Seconds
+ WaitForSingleObject(forkMutexes[2],INFINITE); //Computation Time : 2 Seconds
+ WaitForSingleObject(forkMutexes[0],INFINITE); //Computation Time : 1 Second
+ cout << "Player 1 eating : " << i << endl; //Computation Time : 2 Seconds
+ ReleaseMutex(forkMutexes[2]); //Computation Time : 1 Second
+ ReleaseMutex(forkMutexes[0]); //Computation Time : 1 Second
+ }
+return 0;
+}
+DWORD WINAPI Player2(void* param){
+for(int i =0; i < 4; i++){ //Computation Time : 2 Seconds
+ WaitForSingleObject(forkMutexes[0],INFINITE); //Computation Time : 1 Second
+ WaitForSingleObject(forkMutexes[1],INFINITE); //Computation Time : 2 Seconds
+ cout << "Player 2 eating : " << i << endl; //Computation Time : 2 Seconds
+ ReleaseMutex(forkMutexes[0]); //Computation Time : 1 Second
+ ReleaseMutex(forkMutexes[1]); //Computation Time : 1 Second
+ }
+return 0;
+}
+DWORD WINAPI Player3(void* param){
+for(int i =0; i < 1; i++){ //Computation Time : 2 Seconds
+ WaitForSingleObject(forkMutexes[1],INFINITE); //Computation Time : 1 Second
+ WaitForSingleObject(forkMutexes[2],INFINITE); //Computation Time : 1 Second
+ cout << "Player 3 eating : " << i << endl; //Computation Time : 2 Seconds
+ ReleaseMutex(forkMutexes[1]); //Computation Time : 2 Seconds
+ ReleaseMutex(forkMutexes[2]); //Computation Time : 2 Seconds
+ }
+return 0;
+}
+int main()
+{
+ HANDLE h_thread1, h_thread2,h_thread3;
+int i_threadID1, i_threadID2, i_threadID3;
+for(int i =0; i <3 ; i++)
+ forkMutexes[i] = CreateMutex(NULL, FALSE, NULL);
+ h_thread1 = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Player1, NULL,
+ 0, (LPDWORD)&i_threadID1);
+ h_thread2 = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Player2, NULL,
+ 0, (LPDWORD)&i_threadID2);
+ h_thread3 = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Player3, NULL,
+ 0, (LPDWORD)&i_threadID3);
+ WaitForSingleObject(h_thread1,INFINITE);
+ WaitForSingleObject(h_thread2,INFINITE);
+ WaitForSingleObject(h_thread3,INFINITE);
+return 0;
+}
